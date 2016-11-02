@@ -403,6 +403,7 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
+  optional MappingParameter mapping_param = 147;
 }
 
 // Message that stores parameters used to apply transformation
@@ -879,6 +880,9 @@ message ParameterParameter {
   optional BlobShape shape = 1;
 }
 
+message MappingParameter {
+  optional float lr = 1;
+}
 message PoolingParameter {
   enum PoolMethod {
     MAX = 0;
