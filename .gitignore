@@ -27,3 +27,13 @@
 *.exe
 *.out
 *.app
+
+# Compiled python and models
+*.pyc
+*.caffemodel.h5
+*.bin
+*.caffemodel
+*.solverstate
+
+build/
+.build_release/
