@@ -26,14 +26,14 @@ void MappingLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     sz.push_back(1);
     for ( int i = 0 ; i < 12; ++i){
       this->blobs_[i].reset(new Blob<Dtype>(sz));
-      caffe_set(this->blobs_[i]->count(), Dtype(1e-10),
+      caffe_set(this->blobs_[i]->count(), Dtype(1.),
                 this->blobs_[i]->mutable_cpu_data());
     }
    
-    this->blobs_[0]->mutable_cpu_data()[0] = Dtype(1);
-    this->blobs_[3]->mutable_cpu_data()[0] = Dtype(1);
-    this->blobs_[6]->mutable_cpu_data()[0] = Dtype(1);
-    this->blobs_[9]->mutable_cpu_data()[0] = Dtype(1);
+    this->blobs_[1]->mutable_cpu_data()[0] = Dtype(0);
+    this->blobs_[4]->mutable_cpu_data()[0] = Dtype(0);
+    this->blobs_[7]->mutable_cpu_data()[0] = Dtype(0);
+    this->blobs_[10]->mutable_cpu_data()[0] = Dtype(0);
   }
 }
 
@@ -229,11 +229,12 @@ void MappingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   int  width_ = bottom[0]->width();
 
   int count = top[0]->count();
+  CHECK_EQ(bottom_lr_.count(), count);
   for (int i = 0; i< count; ++i){
-    bottom_lr_diff[i] = top_diff[i] * (bottom_lr_data[i] > 0) /4 * wv_lr_hy[0];
-    bottom_rl_diff[i] = top_diff[i] * (bottom_rl_data[i] > 0) /4 * wv_rl_hy[0] ;
-    bottom_ud_diff[i] = top_diff[i] * (bottom_ud_data[i] > 0) /4 * wv_ud_hy[0] ;
-    bottom_du_diff[i] = top_diff[i] * (bottom_du_data[i] > 0) /4 * wv_du_hy[0] ;
+    bottom_lr_diff[i] = top_diff[i] * (bottom_lr_data[i] > 0) /4. * wv_lr_hy[0];
+    bottom_rl_diff[i] = top_diff[i] * (bottom_rl_data[i] > 0) /4. * wv_rl_hy[0] ;
+    bottom_ud_diff[i] = top_diff[i] * (bottom_ud_data[i] > 0) /4. * wv_ud_hy[0] ;
+    bottom_du_diff[i] = top_diff[i] * (bottom_du_data[i] > 0) /4. * wv_du_hy[0] ;
 
   }
   for ( int i = 0 ; i < count; ++i){
@@ -242,7 +243,7 @@ void MappingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     wv_ud_hy[0] -= lr * bottom_ud_data[i] * top_diff[i];
     wv_du_hy[0] -= lr * bottom_du_data[i] * top_diff[i];
   }
-
+  LOG(INFO) << "bottom bp correct!";
   int base = 0;
   for (int n = 0; n < num_; ++n) {
       for (int c = 0; c < channels_; ++c) {
@@ -254,7 +255,7 @@ void MappingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
           hidden_rl_diff[index] = bottom_rl_diff[index] ;
           for (int pw = width_ -1; pw > 0; --pw){
             index = base + ph * width_ + pw;
-            hidden_lr_diff[index -1] = bottom_lr_diff[index-1] + bottom_lr_diff[index] * ((hidden_lr_data[index] > 0)) * wv_du_hh[0] ;
+            hidden_lr_diff[index -1] = bottom_lr_diff[index-1] + bottom_lr_diff[index] * ((hidden_lr_data[index] > 0)) * wv_lr_hh[0] ;
             index = base + ph * width_ + width_ - pw;
             hidden_rl_diff[index ] = bottom_rl_diff[index] + bottom_rl_diff[index -1] * ((hidden_rl_data[index-1] > 0)) * wv_rl_hh[0] ;
           }
@@ -275,37 +276,39 @@ void MappingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 
       }
     }
+    LOG(INFO) << "hidden bp correct!";
   int base_w = 0;
   for (int n = 0; n < num_; ++n) {
       for (int c = 0; c < channels_; ++c) {
         for (int ph = 0; ph < height_; ++ph) {
-          for (int pw = 0; pw < width_ - 1; --pw){
+          for (int pw = width_ - 2; pw >= 0 ; --pw){
             int index = base_w +  ph * width_ + pw;
-            wv_lr_hh[0] -= lr * hidden_lr_data[index] * hidden_lr_diff[index+1];
+            wv_lr_hh[0] -= lr * hidden_lr_data[index] * bottom_lr_diff[index+1];
             index = base_w + ph * width_ + width_ - 1 - pw;
-            wv_rl_hh[0] -= lr * hidden_lr_data[index] * hidden_lr_diff[index-1]; 
+            wv_rl_hh[0] -= lr * hidden_rl_data[index] * bottom_rl_diff[index-1]; 
           }
         }
         for ( int pw = 0; pw < width_; ++pw){
-          for (int ph = 0 ; ph < height_ - 1 ; --ph){
+          for (int ph = height_ - 2 ; ph >= 0; --ph){
             int index = base_w + ph * width_ + pw;
-            wv_ud_hh[0] -= lr * hidden_ud_data[index] * hidden_ud_diff[index + width_];
+            wv_ud_hh[0] -= lr * hidden_ud_data[index] * bottom_ud_diff[index + width_];
             index = base_w + (height_ - ph -1) * width_ + pw;
-            wv_du_hh[0] -= lr * hidden_du_data[index] * hidden_du_data[index - width_];
+            wv_du_hh[0] -= lr * hidden_du_data[index] * bottom_du_diff[index - width_];
           }
         }
       }
     }
+    LOG(INFO) << "w_hh update correct!";
   for (int i = 0; i <  count; i ++){
     bottom_diff[i] = hidden_lr_diff[i] * wv_lr_xh[0] + hidden_rl_diff[i] * wv_rl_xh[0] + hidden_du_diff[i] * wv_du_xh[0] + hidden_ud_diff[i] * wv_ud_xh[0] ;
   }
   for ( int i = 0; i<  count; ++i){
-    wv_lr_xh[0] -= lr * hidden_lr_data[i] * bottom_data[i];
-    wv_rl_xh[0] -= lr * hidden_rl_data[i] * bottom_data[i];
-    wv_ud_xh[0] -= lr * hidden_ud_data[i] * bottom_data[i];
-    wv_du_xh[0] -= lr * hidden_du_data[i] * bottom_data[i];
+    wv_lr_xh[0] -= lr * hidden_lr_diff[i] * bottom_data[i];
+    wv_rl_xh[0] -= lr * hidden_rl_diff[i] * bottom_data[i];
+    wv_ud_xh[0] -= lr * hidden_ud_diff[i] * bottom_data[i];
+    wv_du_xh[0] -= lr * hidden_du_diff[i] * bottom_data[i];
   }
-
+  LOG(INFO) << "w_xh update correct!";
   caffe_cpu_scale(w_lr_xh_.count(),Dtype(1), w_lr_xh_.cpu_data(),   this->blobs_[0]->mutable_cpu_data());
   caffe_cpu_scale(w_lr_hh_.count(),Dtype(1), w_lr_hh_.cpu_data(),   this->blobs_[1]->mutable_cpu_data());
   caffe_cpu_scale(w_lr_hy_.count(),Dtype(1), w_lr_hy_.cpu_data(),   this->blobs_[2]->mutable_cpu_data());
