@@ -11,11 +11,13 @@ void MappingLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   MappingParameter param = this->layer_param_.mapping_param();
   // learn = param.learn();
-  
   // kernel= param.kernel();
-  // lr = Dtype(param.lr());
-
-  lr = Dtype(1e-10);
+  // Not implemented yet
+  if (param.has_lr()){
+    lr = Dtype(param.lr());
+  } else {
+    lr = Dtype(param.lr(1e-15))
+  }
 
   if (this->blobs_.size() > 0) {
     LOG(INFO) << "Skipping parameter initialization";
@@ -243,7 +245,7 @@ void MappingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     wv_ud_hy[0] -= lr * bottom_ud_data[i] * top_diff[i];
     wv_du_hy[0] -= lr * bottom_du_data[i] * top_diff[i];
   }
-  LOG(INFO) << "bottom bp correct!";
+  
   int base = 0;
   for (int n = 0; n < num_; ++n) {
       for (int c = 0; c < channels_; ++c) {
@@ -276,7 +278,7 @@ void MappingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 
       }
     }
-    LOG(INFO) << "hidden bp correct!";
+    
   int base_w = 0;
   for (int n = 0; n < num_; ++n) {
       for (int c = 0; c < channels_; ++c) {
@@ -298,7 +300,7 @@ void MappingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
         }
       }
     }
-    LOG(INFO) << "w_hh update correct!";
+    
   for (int i = 0; i <  count; i ++){
     bottom_diff[i] = hidden_lr_diff[i] * wv_lr_xh[0] + hidden_rl_diff[i] * wv_rl_xh[0] + hidden_du_diff[i] * wv_du_xh[0] + hidden_ud_diff[i] * wv_ud_xh[0] ;
   }
@@ -308,7 +310,7 @@ void MappingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     wv_ud_xh[0] -= lr * hidden_ud_diff[i] * bottom_data[i];
     wv_du_xh[0] -= lr * hidden_du_diff[i] * bottom_data[i];
   }
-  LOG(INFO) << "w_xh update correct!";
+
   caffe_cpu_scale(w_lr_xh_.count(),Dtype(1), w_lr_xh_.cpu_data(),   this->blobs_[0]->mutable_cpu_data());
   caffe_cpu_scale(w_lr_hh_.count(),Dtype(1), w_lr_hh_.cpu_data(),   this->blobs_[1]->mutable_cpu_data());
   caffe_cpu_scale(w_lr_hy_.count(),Dtype(1), w_lr_hy_.cpu_data(),   this->blobs_[2]->mutable_cpu_data());
