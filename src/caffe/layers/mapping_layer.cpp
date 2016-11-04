@@ -16,7 +16,7 @@ void MappingLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   if (param.has_lr()){
     lr = Dtype(param.lr());
   } else {
-    lr = Dtype(param.lr(1e-15))
+    lr = Dtype(1e-15);
   }
 
   if (this->blobs_.size() > 0) {
