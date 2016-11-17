@@ -43,6 +43,7 @@ class MappingLayer : public Layer<Dtype> {
   // bool learn;//if learn == false : degrade to traditional dilation
   int kernel;//equal to dilation of previous layer
   Dtype lr;
+  Dtype shift;
 
   Blob<Dtype> mapping_idx_;
   Blob<Dtype> w_lr_xh_;

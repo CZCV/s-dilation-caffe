@@ -881,7 +881,10 @@ message ParameterParameter {
 }
 
 message MappingParameter {
+  // learn rate for weight hh
   optional float lr = 1;
+  // learn rate for weight hx,hy the lr_ = lr * shift
+  optional float shift = 2;
 }
 message PoolingParameter {
   enum PoolMethod {
